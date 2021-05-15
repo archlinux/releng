@@ -25,6 +25,13 @@ shellcheck:
 build:
   after_script:
     - mv -- output/metrics.txt .
+  before_script:
+    - |
+      if [[ -n "${SECRET_CODESIGNING_KEY_FILE}" && -n "${SECRET_CODESIGNING_CERT_FILE}" ]]; then
+        cp -- "${SECRET_CODESIGNING_CERT_FILE}" codesign.crt
+        cp -- "${SECRET_CODESIGNING_KEY_FILE}" codesign.key
+      fi
+    - pacman -Syu --needed --noconfirm qemu-headless
   except:
     - master@archlinux/releng
     - schedules@archlinux/releng
@@ -36,6 +43,13 @@ build:
 secure_build:
   after_script:
     - mv -- "output/metrics.txt" .
+  before_script:
+    - |
+      if [[ -n "${SECRET_CODESIGNING_KEY_FILE}" && -n "${SECRET_CODESIGNING_CERT_FILE}" ]]; then
+        cp -- "${SECRET_CODESIGNING_CERT_FILE}" codesign.crt
+        cp -- "${SECRET_CODESIGNING_KEY_FILE}" codesign.key
+      fi
+    - pacman -Syu --needed --noconfirm qemu-headless
   extends: .build
   only:
     - master@archlinux/releng
