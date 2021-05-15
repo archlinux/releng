@@ -7,6 +7,7 @@ variables:
   BUILD_SCRIPT: ./.gitlab/ci/build_releng.sh
   PACKAGE_LIST: archiso erofs-utils ipxe openssl zsync
   QEMU_BUILD_TIMEOUT: 2400
+  QEMU_COPY_ARTIFACTS_TIMEOUT: 120
   QEMU_VM_MEMORY: 3072
   ARCHISO_COW_SPACE_SIZE: 2g
 
