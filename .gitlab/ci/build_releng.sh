@@ -5,8 +5,8 @@
 # The script needs to be run as root and assumes $PWD to be the root of the repository.
 #
 # Dependencies:
-# * all archiso dependencies
-# * coreutils
+# * archiso
+# * gawk
 # * gnupg
 # * openssl
 # * zsync
@@ -106,8 +106,13 @@ create_metrics() {
 
   {
     # metrics on build environment
-    printf 'archiso_version %s\n' "$(pacman -Q archiso |cut -d' ' -f2 | cut -d '-' -f1)"
+    printf 'version_info{package="archiso",name="Version of archiso used for build",version="%s"} 1\n' \
+      "$(pacman -Q archiso |cut -d' ' -f2)"
+    printf 'version_info{package="ipxe",name="Version of iPXE binaries",version="%s"} 1\n' \
+      "$(pacman -Q ipxe |cut -d' ' -f2)"
     # create metrics per buildmode
+    printf 'version_info{package="linux",name="Version of Linux used in image",version="%s"} 1\n' \
+      "$(file "${output}/arch/boot/"*/vmlinuz-linux| cut -d',' -f2| awk '{print $2}')"
     printf 'size_mebibytes{buildmode="iso",artifact="iso"} %s\n' \
       "$(du -m -- "${output}/"*.iso | cut -f1)"
     printf 'package_count{buildmode="iso"} %s\n' \
@@ -203,6 +208,19 @@ create_ephemeral_codesigning_key() {
   print_section_end "ephemeral_codesigning_key"
 }
 
+copy_ipxe_binaries() {
+  # copy ipxe binaries to output dir
+  local _ipxe_base="/usr/share/ipxe"
+  local _ipxe_output="${output}/ipxe"
+
+  print_section_start "copy_ipxe" "Copy iPXE binaries"
+
+  install -vdm 755 -- "${_ipxe_output}"
+  cp -av -- "${_ipxe_base}/"{ipxe-arch.{lkrn,pxe},x86_64/ipxe-arch.efi} "${_ipxe_output}"
+
+  print_section_end "copy_ipxe"
+}
+
 run_mkarchiso() {
   # run mkarchiso
   create_ephemeral_pgp_key
@@ -222,8 +240,9 @@ run_mkarchiso() {
 
   print_section_end "mkarchiso"
 
+  copy_ipxe_binaries
   create_zsync_delta "${output}/"*+(.iso|.tar|.gz|.xz|.zst)
-  create_checksums "${output}/"*+(.iso|.tar|.gz|.xz|.zst)
+  create_checksums "${output}/"*+(.iso|.tar|.gz|.xz|.zst) "${output}/ipxe/"*.{efi,lkrn,pxe}
   create_metrics
 
   print_section_start "ownership" "Setting ownership on output"
