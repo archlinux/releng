@@ -1,0 +1,19 @@
+---
+
+default:
+  image: "archlinux:latest"
+
+.build:
+  artifacts:
+    name: "output"
+    paths:
+      - "output/*"
+    expire_in: 2d
+    reports:
+      metrics: metrics.txt
+  before_script:
+    - pacman -Syu --needed --noconfirm qemu-headless
+  script:
+    - ls -lah
+    - ./template/build-host.sh
+  stage: build
