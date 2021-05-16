@@ -11,7 +11,7 @@
 # * openssl
 # * zsync
 
-set -euo pipefail
+set -eu
 shopt -s extglob
 
 readonly orig_pwd="${PWD}"
@@ -208,6 +208,39 @@ create_ephemeral_codesigning_key() {
   print_section_end "ephemeral_codesigning_key"
 }
 
+select_codesigning_key() {
+  local _codesigning_cert="${orig_pwd}/codesign.crt"
+  local _codesigning_key="${orig_pwd}/codesign.key"
+
+  if [[ -f "${_codesigning_key}" && -f "${_codesigning_cert}" ]]; then
+
+    print_section_start "select_codesigning_key" "Select codesigning key"
+
+    printf "Using local codesigning key pair!\n%s %s\n" "${_codesigning_cert}" "${_codesigning_key}"
+    codesigning_cert="${_codesigning_cert}"
+    codesigning_key="${_codesigning_key}"
+
+    print_section_end "select_codesigning_key"
+  else
+    create_ephemeral_codesigning_key
+  fi
+}
+
+check_codesigning_cert_validity() {
+  local _now _valid_until _ninety_days=7776000
+  printf -v _now "%(%s)T" '-1'
+  _valid_until="$(openssl x509 -noout -dates -in "${codesigning_cert}"| grep -Po 'notAfter=\K.*$' | date +%s -f -)"
+
+  print_section_start "check_codesigning_cert" "Check codesigning cert"
+
+  if (( ("$_now" + "$_ninety_days") > "$_valid_until" )); then
+    printf "The codesigning certificate is only valid for less than 90 days!\n" >&2
+    exit 1
+  fi
+
+  print_section_end "check_codesigning_cert"
+}
+
 copy_ipxe_binaries() {
   # copy ipxe binaries to output dir
   local _ipxe_base="/usr/share/ipxe"
@@ -223,9 +256,6 @@ copy_ipxe_binaries() {
 
 run_mkarchiso() {
   # run mkarchiso
-  create_ephemeral_pgp_key
-  create_ephemeral_codesigning_key
-
   print_section_start "mkarchiso" "Running mkarchiso"
 
   mkdir -p "${output}/" "${tmpdir}/"
@@ -247,16 +277,20 @@ run_mkarchiso() {
 
   print_section_start "ownership" "Setting ownership on output"
 
-  if [[ -n "${SUDO_UID:-}" ]] && [[ -n "${SUDO_GID:-}" ]]; then
+  if [[ -n "${SUDO_UID:-}" && -n "${SUDO_GID:-}" ]]; then
     chown -Rv "${SUDO_UID}:${SUDO_GID}" -- "${output}"
   fi
   print_section_end "ownership"
 }
 
+trap cleanup EXIT
+
 if (( EUID != 0 )); then
     printf "%s must be run as root.\n" "${app_name}" >&2
     exit 1
 fi
-trap cleanup EXIT
 
+create_ephemeral_pgp_key
+select_codesigning_key
+check_codesigning_cert_validity
 run_mkarchiso
