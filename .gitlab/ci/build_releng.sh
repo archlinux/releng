@@ -72,8 +72,7 @@ create_checksums() {
     sha1sum "${_file_name}" > "${_file_name}.sha1"
     sha256sum "${_file_name}" > "${_file_name}.sha256"
     sha512sum "${_file_name}" > "${_file_name}.sha512"
-    ls -lah "${_file_name}."{b2,md5,sha{1,256,512}}
-    cat "${_file_name}."{b2,md5,sha{1,256,512}}
+    grep -H . -- "${_file_name}."{b2,md5,sha{1,256,512}}
   done
   cd "${_current_pwd}"
 
@@ -132,7 +131,6 @@ create_metrics() {
     printf 'package_count{buildmode="bootstrap"} %s\n' \
       "$(sort -u -- "${tmpdir}/"*/bootstrap/root.*/pkglist.*.txt | wc -l)"
   } > "${_metrics}"
-  ls -lah "${_metrics}"
   cat "${_metrics}"
 
   print_section_end "metrics"
