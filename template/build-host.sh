@@ -257,7 +257,7 @@ main() {
   print_section_end "install_packages"
 
   ## Start build and copy output to local disk
-  send "bash -x ${script} ${script_args}\n "
+  send "bash ${script} ${script_args}\n "
   expect "# " "${build_timeout}"
 
   print_section_start "move_artifacts" "Move artifacts to output directory"
