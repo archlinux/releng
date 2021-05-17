@@ -22,6 +22,7 @@ readonly app_name="${0##*/}"
 
 tmpdir=""
 tmpdir="$(mktemp --dry-run --directory --tmpdir="${tmpdir_base}")"
+version="$(date +%Y.%m.%d)"
 gnupg_homedir=""
 codesigning_dir=""
 codesigning_cert=""
@@ -242,7 +243,7 @@ check_codesigning_cert_validity() {
 copy_ipxe_binaries() {
   # copy ipxe binaries to output dir
   local _ipxe_base="/usr/share/ipxe"
-  local _ipxe_output="${output}/ipxe"
+  local _ipxe_output="${output}/ipxe/ipxe-${version}"
 
   print_section_start "copy_ipxe" "Copy iPXE binaries"
 
@@ -250,6 +251,32 @@ copy_ipxe_binaries() {
   cp -av -- "${_ipxe_base}/"{ipxe-arch.{lkrn,pxe},x86_64/ipxe-arch.efi} "${_ipxe_output}"
 
   print_section_end "copy_ipxe"
+
+  create_checksums "${_ipxe_output}/"*.{efi,lkrn,pxe}
+}
+
+move_build_artifacts() {
+  print_section_start "move_build_artifacts" "Move build artifacts to release directories"
+
+  mkdir -vp -- "${output}/bootstrap/bootstrap-${version}"
+  mkdir -vp -- "${output}/iso/iso-${version}"
+  mkdir -vp -- "${output}/netboot/netboot-${version}"
+  mv -v -- "${output}/archlinux-bootstrap"* "${output}/bootstrap/bootstrap-${version}/"
+  mv -v -- "${output}/archlinux-"*.iso* "${output}/iso/iso-${version}/"
+  mv -v -- "${output}/${install_dir}/"* "${output}/netboot/netboot-${version}/"
+  rmdir -v "${output}/${install_dir}/"
+
+  print_section_end "move_build_artifacts"
+}
+
+set_ownership() {
+  print_section_start "ownership" "Setting ownership on output"
+
+  if [[ -n "${SUDO_UID:-}" && -n "${SUDO_GID:-}" ]]; then
+    chown -Rv "${SUDO_UID}:${SUDO_GID}" -- "${output}"
+  fi
+
+  print_section_end "ownership"
 }
 
 run_mkarchiso() {
@@ -268,17 +295,10 @@ run_mkarchiso() {
 
   print_section_end "mkarchiso"
 
-  copy_ipxe_binaries
   create_zsync_delta "${output}/"*+(.iso|.tar|.gz|.xz|.zst)
-  create_checksums "${output}/"*+(.iso|.tar|.gz|.xz|.zst) "${output}/ipxe/"*.{efi,lkrn,pxe}
+  create_checksums "${output}/"*+(.iso|.tar|.gz|.xz|.zst)
   create_metrics
-
-  print_section_start "ownership" "Setting ownership on output"
-
-  if [[ -n "${SUDO_UID:-}" && -n "${SUDO_GID:-}" ]]; then
-    chown -Rv "${SUDO_UID}:${SUDO_GID}" -- "${output}"
-  fi
-  print_section_end "ownership"
+  move_build_artifacts
 }
 
 trap cleanup EXIT
@@ -292,3 +312,5 @@ create_ephemeral_pgp_key
 select_codesigning_key
 check_codesigning_cert_validity
 run_mkarchiso
+copy_ipxe_binaries
+set_ownership
