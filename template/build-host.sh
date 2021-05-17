@@ -21,6 +21,7 @@
 # BUILD_SCRIPT_ARGS: The arguments to BUILD_SCRIPT (as a space delimited list)
 # PACKAGE_LIST: A space delimited list of packages to install to the virtual machine
 # PACMAN_MIRROR: The pacman mirror to use (defaults to "https://mirror.pkgbuild.com")
+# ISO_DIR: The directory on the mirror server to use for locating the latest .iso (defaults to "iso/latest/")
 # QEMU_DISK_SIZE: A string given to fallocate to create a scratch disk to build in (defaults to 8G - see
 # https://man.archlinux.org/man/fallocate.1 for understood units)
 # QEMU_VM_MEMORY: The amount of RAM (in MiB) allocated for the QEMU virtual machine (defaults to 1024)
@@ -42,6 +43,7 @@ arch="${ARCHITECTURE:-x86_64}"
 script="${BUILD_SCRIPT:-./build-inside-vm.sh}"
 script_args="${BUILD_SCRIPT_ARGS:-}"
 mirror="${PACMAN_MIRROR:-https://mirror.pkgbuild.com}"
+iso_dir="${ISO_DIR:-iso/latest/}"
 disk_size="${QEMU_DISK_SIZE:-8G}"
 vm_memory="${QEMU_VM_MEMORY:-1024}"
 login_timeout="${QEMU_LOGIN_TIMEOUT:-60}"
@@ -114,7 +116,7 @@ prepare_boot() {
 
   if (( ${#_isos[@]} < 1 )); then
     _latest_iso="$(
-        curl -fs "${mirror}/iso/latest/" | \
+        curl -fs "${mirror}/${iso_dir}" | \
         grep -Eo "archlinux-[0-9]{4}\.[0-9]{2}\.[0-9]{2}-${arch}.iso" | \
         head -n 1
     )"
