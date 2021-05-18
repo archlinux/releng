@@ -4,6 +4,43 @@ releng
 
 This repository is used to create release artifacts for Arch Linux.
 
+Artifacts
+=========
+
+Releases of this repository provide artifacts, that are in either of the following two categories: *build artifacts* and
+*promotion artifacts*. For `archweb <https://github.com/archlinux/archweb/>`_ only releases with *both* artifact types
+are considered.
+
+Build Artifacts
+---------------
+
+These artifacts are the output of the build script in this repository (e.g. by running `make` as root, locally). It
+gathers artifacts by:
+
+- running ``mkarchiso`` (`archiso <https://gitlab.archlinux.org/archlinux/archiso>`_) using the `releng profile
+  <https://gitlab.archlinux.org/archlinux/archiso/-/tree/master/configs/releng>`_ in all available build modes
+  (``bootstrap``, ``iso``, ``netboot``)
+- copying relevant binaries from the `ipxe package <https://archlinux.org/packages/community/x86_64/ipxe/>`_
+- creating a codesigned iPXE target script (see `#9 <https://gitlab.archlinux.org/archlinux/releng/-/issues/9>`_)
+- creating zsync files for large artifacts
+- creating checksums
+
+The artifacts are assembled in a directory structure, that reflects the artifact type (``bootstrap``, ``ipxe``, ``iso``,
+``netboot``) per-release (i.e. ``<type>/<type>-<version>``).
+
+Promotion Artifacts
+-------------------
+
+These artifacts are added to a release by a developer, after it has been created to "promote" the release to become one
+that is used on the mirrors. Promotion artifacts encompass:
+
+- detached PGP signatures for the ``iso`` and ``bootstrap`` build artifacts (see `#1
+  <https://gitlab.archlinux.org/archlinux/releng/-/issues/1>`_)
+- base64-encoded torrent files for the ``iso`` and ``bootstrap`` build artifacts (which include the detached PGP
+  signatures) (see `#5 <https://gitlab.archlinux.org/archlinux/releng/-/issues/5>`_)
+- a JSON file with required metadata for the release (see `#3
+  <https://gitlab.archlinux.org/archlinux/releng/-/issues/3>`_)
+
 Code Signing
 ============
 
