@@ -12,6 +12,8 @@
 # * gnupg
 # * openssl
 # * zsync
+# * python
+# * python-jinja
 
 set -eu
 shopt -s extglob
@@ -303,6 +305,38 @@ run_mkarchiso() {
   move_build_artifacts
 }
 
+generate_archlinux_ipxe() {
+  # generate the archlinux.ipxe intermediate artifact that is downloaded by the ipxe image
+  print_section_start "generate_archlinux_ipxe" "Generating archlinux.ipxe image"
+
+  local _ipxe_dir="${orig_pwd}/ipxe"
+  local _ipxe_output_dir="${output}/ipxe"
+
+  python "${_ipxe_dir}/generate_archlinux_ipxe.py" > "${_ipxe_output_dir}/archlinux.ipxe"
+
+  print_section_end "generate_archlinux_ipxe"
+}
+
+sign_archlinux_ipxe() {
+  # sign the archlinux.ipxe intermediate artifact
+  print_section_start "sign_archlinux_ipxe" "Signing archlinux.ipxe image"
+
+  local _ipxe_dir="${orig_pwd}/ipxe"
+  local _ipxe_output_dir="${output}/ipxe"
+
+  openssl cms \
+      -sign \
+      -binary \
+      -noattr \
+      -in "${_ipxe_dir}/archlinux.ipxe" \
+      -signer "${codesigning_cert}" \
+      -inkey "${codesigning_key}" \
+      -outform DER \
+      -out "${_ipxe_output_dir}/archlinux.ipxe.sig"
+
+  print_section_end "sign_archlinux_ipxe"
+}
+
 trap cleanup EXIT
 
 if (( EUID != 0 )); then
@@ -313,6 +347,8 @@ fi
 create_ephemeral_pgp_key
 select_codesigning_key
 check_codesigning_cert_validity
+generate_archlinux_ipxe
+sign_archlinux_ipxe
 run_mkarchiso
 copy_ipxe_binaries
 set_ownership
