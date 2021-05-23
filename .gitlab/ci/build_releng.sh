@@ -14,6 +14,7 @@
 # * zsync
 # * python
 # * python-jinja
+# * python-orjson
 
 set -eu
 shopt -s extglob
@@ -306,13 +307,15 @@ run_mkarchiso() {
 }
 
 generate_archlinux_ipxe() {
-  # generate the archlinux.ipxe intermediate artifact that is downloaded by the ipxe image
+  # generate the archlinux.ipxe target script that is downloaded by the ipxe image
   print_section_start "generate_archlinux_ipxe" "Generating archlinux.ipxe image"
 
   local _ipxe_dir="${orig_pwd}/ipxe"
-  local _ipxe_output_dir="${output}/ipxe"
+  local _ipxe_output="${output}/ipxe/ipxe-${version}"
 
-  python "${_ipxe_dir}/generate_archlinux_ipxe.py" > "${_ipxe_output_dir}/archlinux.ipxe"
+  python "${_ipxe_dir}/generate_archlinux_ipxe.py" > "${_ipxe_output}/archlinux.ipxe"
+
+  create_checksums "${_ipxe_output}/archlinux.ipxe"
 
   print_section_end "generate_archlinux_ipxe"
 }
@@ -322,7 +325,7 @@ sign_archlinux_ipxe() {
   print_section_start "sign_archlinux_ipxe" "Signing archlinux.ipxe image"
 
   local _ipxe_dir="${orig_pwd}/ipxe"
-  local _ipxe_output_dir="${output}/ipxe"
+  local _ipxe_output="${output}/ipxe/ipxe-${version}"
 
   openssl cms \
       -sign \
@@ -332,7 +335,7 @@ sign_archlinux_ipxe() {
       -signer "${codesigning_cert}" \
       -inkey "${codesigning_key}" \
       -outform DER \
-      -out "${_ipxe_output_dir}/archlinux.ipxe.sig"
+      -out "${_ipxe_output}/archlinux.ipxe.sig"
 
   print_section_end "sign_archlinux_ipxe"
 }
