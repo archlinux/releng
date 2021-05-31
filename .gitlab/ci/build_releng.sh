@@ -252,7 +252,6 @@ copy_ipxe_binaries() {
 
   print_section_start "copy_ipxe" "Copy iPXE binaries"
 
-  install -vdm 755 -- "${_ipxe_output}"
   cp -av -- "${_ipxe_base}/"{ipxe-arch.{lkrn,pxe},x86_64/ipxe-arch.efi} "${_ipxe_output}"
 
   print_section_end "copy_ipxe"
@@ -313,6 +312,7 @@ generate_archlinux_ipxe() {
   local _ipxe_dir="${orig_pwd}/ipxe"
   local _ipxe_output="${output}/ipxe/ipxe-${version}"
 
+  install -vdm 755 -- "${_ipxe_output}"
   python "${_ipxe_dir}/generate_archlinux_ipxe.py" > "${_ipxe_output}/archlinux.ipxe"
 
   create_checksums "${_ipxe_output}/archlinux.ipxe"
@@ -331,7 +331,7 @@ sign_archlinux_ipxe() {
       -sign \
       -binary \
       -noattr \
-      -in "${_ipxe_dir}/archlinux.ipxe" \
+      -in "${_ipxe_output}/archlinux.ipxe" \
       -signer "${codesigning_cert}" \
       -inkey "${codesigning_key}" \
       -outform DER \

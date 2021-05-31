@@ -8,7 +8,7 @@ include:
 
 variables:
   BUILD_SCRIPT: ./.gitlab/ci/build_releng.sh
-  PACKAGE_LIST: archiso erofs-utils ipxe openssl zsync
+  PACKAGE_LIST: archiso erofs-utils ipxe openssl zsync python python-jinja python-orjson
   QEMU_BUILD_TIMEOUT: 2400
   QEMU_COPY_ARTIFACTS_TIMEOUT: 120
   QEMU_VM_MEMORY: 3072
