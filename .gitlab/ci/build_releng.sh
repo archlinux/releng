@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 #
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # This script is run within a virtual environment to build the available archiso profiles and their available build
 # modes and create checksum files for the resulting images.
 # The script needs to be run as root and assumes $PWD to be the root of the repository.

@@ -14,6 +14,8 @@ variables:
 stages:
   - check
   - build
+  - prepare
+  - publish
 
 shellcheck:
   before_script:
@@ -55,5 +57,41 @@ secure_build:
     - master@archlinux/releng
     - schedules@archlinux/releng
     - tags@archlinux/releng
+  tags:
+    - secure
+
+prepare_release:
+  artifacts:
+    reports:
+      dotenv: variables.env
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $CI_PROJECT_PATH == "archlinux/releng" && $SCHEDULED_PUBLISH == "TRUE"'
+  script:
+    - printf "TAG=%(%Y.%m.%d)T.%s\n" -1 "${CI_JOB_ID}" > variables.env
+    - printf "VERSION=%(%Y.%m.%d)T\n" -1 >> variables.env
+  stage: prepare
+  tags:
+    - secure
+
+create_release:
+  before_script:
+    - pacman -Syu --needed --noconfirm release-cli
+  needs:
+    - job: prepare_release
+      artifacts: true
+  release:
+    name: 'Release ${TAG}'
+    description: 'Auto-created release ${TAG} (version ${VERSION}).'
+    tag_name: '$TAG'
+    ref: '$CI_COMMIT_SHA'
+    assets:
+      links:
+        - name: 'Build artifacts'
+          url: '${CI_PROJECT_URL}/-/jobs/artifacts/${TAG}/browse/output?job=secure_build'
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $CI_PROJECT_PATH == "archlinux/releng" && $SCHEDULED_PUBLISH == "TRUE"'
+  script:
+    - printf "Creating release %s...\n" "${TAG}"
+  stage: publish
   tags:
     - secure
