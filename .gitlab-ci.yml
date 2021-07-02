@@ -1,7 +1,10 @@
 ---
 
+# NOTE: most functionality (apart from building) is abstracted by this include
 include:
-  - local: '/template/prepare_vm.yml'
+  - project: 'archlinux/ci-scripts'
+    ref: master
+    file: '/prepare_archiso_vm.yml'
 
 variables:
   BUILD_SCRIPT: ./.gitlab/ci/build_releng.sh
@@ -25,38 +28,34 @@ shellcheck:
   stage: check
 
 build:
-  after_script:
-    - mv -- output/metrics.txt .
-  before_script:
-    - |
-      if [[ -n "${SECRET_CODESIGNING_KEY_FILE}" && -n "${SECRET_CODESIGNING_CERT_FILE}" ]]; then
-        cp -- "${SECRET_CODESIGNING_CERT_FILE}" codesign.crt
-        cp -- "${SECRET_CODESIGNING_KEY_FILE}" codesign.key
-      fi
-    - pacman -Syu --needed --noconfirm qemu-headless
   except:
     - master@archlinux/releng
     - schedules@archlinux/releng
     - tags@archlinux/releng
   extends: .build
-  tags:
-    - fast-single-thread
-
-secure_build:
-  after_script:
-    - mv -- "output/metrics.txt" .
-  before_script:
+  script:
     - |
       if [[ -n "${SECRET_CODESIGNING_KEY_FILE}" && -n "${SECRET_CODESIGNING_CERT_FILE}" ]]; then
         cp -- "${SECRET_CODESIGNING_CERT_FILE}" codesign.crt
         cp -- "${SECRET_CODESIGNING_KEY_FILE}" codesign.key
       fi
-    - pacman -Syu --needed --noconfirm qemu-headless
+    - ./ci-scripts/scripts/build_in_archiso_vm.sh
+  tags:
+    - fast-single-thread
+
+secure_build:
   extends: .build
   only:
     - master@archlinux/releng
     - schedules@archlinux/releng
     - tags@archlinux/releng
+  script:
+    - |
+      if [[ -n "${SECRET_CODESIGNING_KEY_FILE}" && -n "${SECRET_CODESIGNING_CERT_FILE}" ]]; then
+        cp -- "${SECRET_CODESIGNING_CERT_FILE}" codesign.crt
+        cp -- "${SECRET_CODESIGNING_KEY_FILE}" codesign.key
+      fi
+    - ./ci-scripts/scripts/build_in_archiso_vm.sh
   tags:
     - secure
 
