@@ -108,12 +108,12 @@ create_metrics() {
 
   {
     # metrics on build environment
-    printf 'version_info{package="archiso",name="Version of archiso used for build",version="%s"} 1\n' \
+    printf 'version_info{package="archiso",description="Version of archiso used for build",version="%s"} 1\n' \
       "$(pacman -Q archiso |cut -d' ' -f2)"
-    printf 'version_info{package="ipxe",name="Version of iPXE binaries",version="%s"} 1\n' \
+    printf 'version_info{package="ipxe",description="Version of iPXE binaries",version="%s"} 1\n' \
       "$(pacman -Q ipxe |cut -d' ' -f2)"
     # create metrics per buildmode
-    printf 'version_info{package="linux",name="Version of Linux used in image",version="%s"} 1\n' \
+    printf 'version_info{package="linux",description="Version of Linux used in image",version="%s"} 1\n' \
       "$(file "${output}/arch/boot/"*/vmlinuz-linux| cut -d',' -f2| awk '{print $2}')"
     printf 'size_mebibytes{buildmode="iso",artifact="iso"} %s\n' \
       "$(du -m -- "${output}/"*.iso | cut -f1)"
