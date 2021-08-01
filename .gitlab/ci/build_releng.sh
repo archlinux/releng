@@ -104,40 +104,64 @@ create_zsync_delta() {
   print_section_end "zsync_delta"
 }
 
+print_package_version_metric() {
+  local _name="${1}" _description="${2}" _version=""
+
+  if find "${tmpdir}" -type d -iwholename "*airootfs/var/lib/pacman/local/${_name}-*" >/dev/null; then
+    _version=$(
+      find "${tmpdir}" \
+        -type d \
+        -iwholename "*airootfs/var/lib/pacman/local/${_name}-[0-9,-]*" \
+        -exec basename {} \; \
+      | cut -d '-' --output-delimiter '-' -f2,3
+    )
+    printf 'version_info{name="%s",description="%s",version="%s"} 1\n' \
+      "${_name}" "${_description}" "${_version}"
+  fi
+}
+
 create_metrics() {
   local _metrics="${output}/metrics.txt"
   # create metrics
   print_section_start "metrics" "Creating metrics"
 
   {
-    # metrics on build environment
-    printf 'version_info{package="archiso",description="Version of archiso used for build",version="%s"} 1\n' \
+    printf '# TYPE version_info info\n'
+    printf 'version_info{name="archiso",description="Version of archiso used for build",version="%s"} 1\n' \
       "$(pacman -Q archiso |cut -d' ' -f2)"
-    printf 'version_info{package="ipxe",description="Version of iPXE binaries",version="%s"} 1\n' \
+    printf 'version_info{name="ipxe",description="Version of iPXE binaries",version="%s"} 1\n' \
       "$(pacman -Q ipxe |cut -d' ' -f2)"
-    # create metrics per buildmode
-    printf 'version_info{package="linux",description="Version of Linux used in image",version="%s"} 1\n' \
+    printf 'version_info{name="linux",description="Version of Linux used in image",version="%s"} 1\n' \
       "$(file "${output}/arch/boot/"*/vmlinuz-linux| cut -d',' -f2| awk '{print $2}')"
-    printf 'size_mebibytes{buildmode="iso",artifact="iso"} %s\n' \
-      "$(du -m -- "${output}/"*.iso | cut -f1)"
-    printf 'package_count{buildmode="iso"} %s\n' \
-      "$(sort -u -- "${tmpdir}/iso/"*/pkglist.*.txt | wc -l)"
+
+    print_package_version_metric "archinstall" "Version of archinstall used in image"
+    print_package_version_metric "pacman" "Version of pacman used in image"
+    print_package_version_metric "systemd" "Version of systemd used in image"
+
+    printf '# TYPE artifact_bytes gauge\n'
+    printf 'artifact_bytes{name="iso",description="Size of ISO"} %s\n' \
+      "$(du -b -- "${output}/"*.iso | cut -f1)"
     if [[ -e "${tmpdir}/efiboot.img" ]]; then
-      printf 'size_mebibytes{buildmode="iso",artifact="eltorito_efi_image"} %s\n' \
-        "$(du -m -- "${tmpdir}/efiboot.img" | cut -f1)"
+      printf 'artifact_bytes{name="eltorito_efi_image",description="Size of El-Torito EFI Image"} %s\n' \
+        "$(du -b -- "${tmpdir}/efiboot.img" | cut -f1)"
     fi
-    printf 'size_mebibytes{buildmode="iso",artifact="initramfs"} %s\n' \
-      "$(du -m -- "${tmpdir}/iso/"*/boot/**/initramfs*.img | cut -f1)"
-    printf 'size_mebibytes{buildmode="netboot",artifact="directory"} %s\n' \
-      "$(du -m -- "${output}/${install_dir}/" | tail -n1 | cut -f1)"
-    printf 'package_count{buildmode="netboot"} %s\n' \
+    printf 'artifact_bytes{name="initramfs",artifact="Size of initramfs"} %s\n' \
+      "$(du -b -- "${tmpdir}/iso/"*/boot/*/initramfs*.img | cut -f1)"
+    printf 'artifact_bytes{name="netboot",description="Size of netboot directory"} %s\n' \
+      "$(du -bs -- "${output}/${install_dir}/" | cut -f1)"
+    printf 'artifact_bytes{name="bootstrap",description="Size of compressed bootstrap rootfs"} %s\n' \
+      "$(du -b -- "${output}/"*.tar*(.gz|.xz|.zst) | cut -f1)"
+
+    printf '# TYPE data_count summary\n'
+    printf 'data_count{name="iso",description="Number of packages in ISO"} %s\n' \
       "$(sort -u -- "${tmpdir}/iso/"*/pkglist.*.txt | wc -l)"
-    printf 'size_mebibytes{buildmode="bootstrap",artifact="compressed"} %s\n' \
-      "$(du -m -- "${output}/"*.tar*(.gz|.xz|.zst) | cut -f1)"
-    printf 'package_count{buildmode="bootstrap"} %s\n' \
+    printf 'data_count{name="netboot",description="Number of packages in netboot rootfs"} %s\n' \
+      "$(sort -u -- "${tmpdir}/iso/"*/pkglist.*.txt | wc -l)"
+    printf 'data_count{name="bootstrap",description="Number of packages in compressed bootstrap rootfs"} %s\n' \
       "$(sort -u -- "${tmpdir}/"*/bootstrap/root.*/pkglist.*.txt | wc -l)"
-  } > "${_metrics}"
-  cat "${_metrics}"
+  } >"${_metrics}"
+  # show metrics (without comments, as the '#' character is read as if this script finished)
+  grep -v '#' "${_metrics}"
 
   print_section_end "metrics"
 }
