@@ -12,6 +12,9 @@
 # * gnupg
 # * openssl
 # * zsync
+# * python
+# * python-jinja
+# * python-orjson
 
 set -eu
 shopt -s extglob
@@ -249,7 +252,6 @@ copy_ipxe_binaries() {
 
   print_section_start "copy_ipxe" "Copy iPXE binaries"
 
-  install -vdm 755 -- "${_ipxe_output}"
   cp -av -- "${_ipxe_base}/"{ipxe-arch.{lkrn,pxe},x86_64/ipxe-arch.efi} "${_ipxe_output}"
 
   print_section_end "copy_ipxe"
@@ -303,6 +305,41 @@ run_mkarchiso() {
   move_build_artifacts
 }
 
+generate_archlinux_ipxe() {
+  # generate the archlinux.ipxe target script that is downloaded by the ipxe image
+  print_section_start "generate_archlinux_ipxe" "Generating archlinux.ipxe image"
+
+  local _ipxe_dir="${orig_pwd}/ipxe"
+  local _ipxe_output="${output}/ipxe/ipxe-${version}"
+
+  install -vdm 755 -- "${_ipxe_output}"
+  python "${_ipxe_dir}/generate_archlinux_ipxe.py" > "${_ipxe_output}/archlinux.ipxe"
+
+  create_checksums "${_ipxe_output}/archlinux.ipxe"
+
+  print_section_end "generate_archlinux_ipxe"
+}
+
+sign_archlinux_ipxe() {
+  # sign the archlinux.ipxe intermediate artifact
+  print_section_start "sign_archlinux_ipxe" "Signing archlinux.ipxe image"
+
+  local _ipxe_dir="${orig_pwd}/ipxe"
+  local _ipxe_output="${output}/ipxe/ipxe-${version}"
+
+  openssl cms \
+      -sign \
+      -binary \
+      -noattr \
+      -in "${_ipxe_output}/archlinux.ipxe" \
+      -signer "${codesigning_cert}" \
+      -inkey "${codesigning_key}" \
+      -outform DER \
+      -out "${_ipxe_output}/archlinux.ipxe.sig"
+
+  print_section_end "sign_archlinux_ipxe"
+}
+
 trap cleanup EXIT
 
 if (( EUID != 0 )); then
@@ -313,6 +350,8 @@ fi
 create_ephemeral_pgp_key
 select_codesigning_key
 check_codesigning_cert_validity
+generate_archlinux_ipxe
+sign_archlinux_ipxe
 run_mkarchiso
 copy_ipxe_binaries
 set_ownership
